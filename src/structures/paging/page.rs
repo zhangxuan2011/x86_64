@@ -538,6 +538,44 @@ mod tests {
     }
 
     #[test]
+    #[should_panic = "attempt to add resulted in non-canonical virtual address: VirtAddrNotValid(0x800000000000)"]
+    fn test_page_range_next_jumping_gap_panics() {
+        let start = 0x7fff_ffff_f000;
+        let end = 0xffff_8000_0000_0000;
+        let start = VirtAddr::new(start);
+        let end = VirtAddr::new(end);
+        let start = Page::<Size4KiB>::from_start_address(start).unwrap();
+        let end = Page::from_start_address(end).unwrap();
+        Page::range(start, end).next();
+    }
+
+    // TODO: This probably shouldn't panic, but we can't fix this without a breaking change.
+    #[test]
+    #[should_panic = "attempt to add resulted in non-canonical virtual address: VirtAddrNotValid(0x800000000000)"]
+    fn test_page_range_inclusive_next_not_jumping_gap_panics() {
+        let start = 0x7fff_ffff_f000;
+        let end = 0x7fff_ffff_f000;
+        let start = VirtAddr::new(start);
+        let end = VirtAddr::new(end);
+        let start = Page::<Size4KiB>::from_start_address(start).unwrap();
+        let end = Page::from_start_address(end).unwrap();
+        Page::range_inclusive(start, end).next();
+    }
+
+    #[test]
+    #[should_panic = "attempt to add resulted in non-canonical virtual address: VirtAddrNotValid(0x800000000000)"]
+    fn test_page_range_inclusive_next_jumping_gap_panics() {
+        let start = 0x7fff_ffff_f000;
+        let end = 0x7fff_ffff_f000;
+        let start = VirtAddr::new(start);
+        let end = VirtAddr::new(end);
+        let start = Page::<Size4KiB>::from_start_address(start).unwrap();
+        let end = Page::from_start_address(end).unwrap();
+        Page::range_inclusive(start, end).next();
+        Page::range_inclusive(start, end).next();
+    }
+
+    #[test]
     pub fn test_page_range_len() {
         let start_addr = VirtAddr::new(0xdead_beaf);
         let start = Page::<Size4KiB>::containing_address(start_addr);
