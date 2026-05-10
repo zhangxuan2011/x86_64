@@ -765,3 +765,160 @@ mod tests {
         }
     }
 }
+
+#[cfg(kani)]
+mod proofs {
+    use super::*;
+
+    fn page_range_next_harness(should_panic_mode: bool) {
+        let start = kani::any::<Page<Size4KiB>>();
+        let end = kani::any::<Page<Size4KiB>>();
+
+        // If the code is expected to panic, only run it in `#[should_panic]`
+        // mode.
+        let should_panic = start.start_address().as_u64() != 0x7fff_ffff_e000
+            || start.start_address().as_u64() != 0x7fff_ffff_f000;
+        kani::assume(should_panic == should_panic_mode);
+
+        if should_panic {
+            // Calling `next` should panic.
+            let mut our_range = Page::range(start, end);
+            our_range.next();
+            our_range.next();
+            return;
+        }
+
+        // Otherwise the results should match what `Range` returns.
+        let mut our_range = Page::range(start, end);
+        let mut native_range = start..end;
+        // The first assert checks that we're returning the correct value.
+        assert_eq!(our_range.next(), native_range.next());
+        // The second assert checks that we're updating the range state correctly.
+        assert_eq!(our_range.next(), native_range.next());
+    }
+
+    #[kani::proof]
+    fn page_range_next() {
+        page_range_next_harness(false);
+    }
+
+    #[kani::proof]
+    #[kani::should_panic]
+    fn page_range_next_panic() {
+        page_range_next_harness(true);
+    }
+
+    fn page_range_next_back_harness(should_panic_mode: bool) {
+        let start = kani::any::<Page<Size4KiB>>();
+        let end = kani::any::<Page<Size4KiB>>();
+
+        // If the code is expected to panic, only run it in `#[should_panic]`
+        // mode.
+        let should_panic = start.start_address().as_u64() != 0xffff_8000_0000_0000
+            || start.start_address().as_u64() != 0xffff_8000_0000_1000;
+        kani::assume(should_panic == should_panic_mode);
+
+        if should_panic {
+            // Calling `next_back` should panic.
+            let mut our_range = Page::range(start, end);
+            our_range.next_back();
+            our_range.next_back();
+            return;
+        }
+
+        // Otherwise the results should match what `Range` returns.
+        let mut our_range = Page::range(start, end);
+        let mut native_range = start..end;
+        // The first assert checks that we're returning the correct value.
+        assert_eq!(our_range.next_back(), native_range.next_back());
+        // The second assert checks that we're updating the range state correctly.
+        assert_eq!(our_range.next_back(), native_range.next_back());
+    }
+
+    #[kani::proof]
+    fn page_range_next_back() {
+        page_range_next_back_harness(false);
+    }
+
+    #[kani::proof]
+    #[kani::should_panic]
+    fn page_range_next_back_panic() {
+        page_range_next_back_harness(true);
+    }
+
+    fn page_range_inclusive_next_harness(should_panic_mode: bool) {
+        let start = kani::any::<Page<Size4KiB>>();
+        let end = kani::any::<Page<Size4KiB>>();
+
+        // If the code is expected to panic, only run it in `#[should_panic]`
+        // mode.
+        let should_panic = start.start_address().as_u64() != 0x7fff_ffff_e000
+            || start.start_address().as_u64() != 0x7fff_ffff_f000;
+        kani::assume(should_panic == should_panic_mode);
+
+        if should_panic {
+            // Calling `next` should panic.
+            let mut our_range = Page::range_inclusive(start, end);
+            our_range.next();
+            our_range.next();
+            return;
+        }
+
+        // Otherwise the results should match what `Range` returns.
+        let mut our_range = Page::range_inclusive(start, end);
+        let mut native_range = start..=end;
+        // The first assert checks that we're returning the correct value.
+        assert_eq!(our_range.next(), native_range.next());
+        // The second assert checks that we're updating the range state correctly.
+        assert_eq!(our_range.next(), native_range.next());
+    }
+
+    #[kani::proof]
+    fn page_range_inclusive_next() {
+        page_range_inclusive_next_harness(false);
+    }
+
+    #[kani::proof]
+    #[kani::should_panic]
+    fn page_range_inclusive_next_panic() {
+        page_range_inclusive_next_harness(true);
+    }
+
+    fn page_range_inclusive_next_back_harness(should_panic_mode: bool) {
+        let start = kani::any::<Page<Size4KiB>>();
+        let end = kani::any::<Page<Size4KiB>>();
+
+        // If the code is expected to panic, only run it in `#[should_panic]`
+        // mode.
+        let should_panic = start.start_address().as_u64() != 0xffff_8000_0000_0000
+            || start.start_address().as_u64() != 0xffff_8000_0000_1000;
+        kani::assume(should_panic == should_panic_mode);
+
+        if should_panic {
+            // Calling `next_back` should panic.
+            let mut our_range = Page::range_inclusive(start, end);
+            our_range.next_back();
+            our_range.next_back();
+            return;
+        }
+
+        // Otherwise the results should match what `Range` returns.
+        let mut our_range = Page::range_inclusive(start, end);
+        let mut native_range = start..=end;
+        // The first assert checks that we're returning the correct value.
+        assert_eq!(our_range.next_back(), native_range.next_back());
+        // The second assert checks that we're updating the range state correctly.
+        assert_eq!(our_range.next_back(), native_range.next_back());
+    }
+
+    #[kani::proof]
+    fn page_range_inclusive_next_back() {
+        page_range_inclusive_next_back_harness(false);
+    }
+
+    #[kani::proof]
+    #[kani::should_panic]
+    fn page_range_inclusive_next_back_panic() {
+        page_range_inclusive_next_back_harness(true);
+    }
+}
