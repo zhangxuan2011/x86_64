@@ -488,6 +488,13 @@ impl Step for VirtAddr {
     }
 }
 
+#[cfg(kani)]
+impl kani::Arbitrary for VirtAddr {
+    fn any() -> Self {
+        Self::new_truncate(kani::any())
+    }
+}
+
 /// A passed `u64` was not a valid physical address.
 ///
 /// This means that bits 52 to 64 were not all null.
@@ -993,10 +1000,8 @@ mod proofs {
     // step starting from any address.
     #[kani::proof]
     fn forward_base_case() {
-        let start_raw: u64 = kani::any();
-        let Ok(start) = VirtAddr::try_new(start_raw) else {
-            return;
-        };
+        let start = kani::any::<VirtAddr>();
+        let start_raw = start.as_u64();
 
         // Adding 0 to any address should always yield the same address.
         let same = Step::forward(start, 0);
@@ -1030,10 +1035,7 @@ mod proofs {
     // same as taking one combined large step.
     #[kani::proof]
     fn forward_induction_step() {
-        let start_raw: u64 = kani::any();
-        let Ok(start) = VirtAddr::try_new(start_raw) else {
-            return;
-        };
+        let start = kani::any::<VirtAddr>();
 
         let count1: usize = kani::any();
         let count2: usize = kani::any();
@@ -1060,10 +1062,7 @@ mod proofs {
     // for all inputs for which `forward_checked` succeeds.
     #[kani::proof]
     fn forward_implies_backward() {
-        let start_raw: u64 = kani::any();
-        let Ok(start) = VirtAddr::try_new(start_raw) else {
-            return;
-        };
+        let start = kani::any::<VirtAddr>();
         let count: usize = kani::any();
 
         // If `forward_checked` succeeds...
@@ -1080,10 +1079,7 @@ mod proofs {
     // succeeds, `forward` succeeds as well.
     #[kani::proof]
     fn backward_implies_forward() {
-        let end_raw: u64 = kani::any();
-        let Ok(end) = VirtAddr::try_new(end_raw) else {
-            return;
-        };
+        let end = kani::any::<VirtAddr>();
         let count: usize = kani::any();
 
         // If `backward_checked` succeeds...
@@ -1105,10 +1101,7 @@ mod proofs {
     // `steps_between` for all inputs for which `forward_checked` succeeds.
     #[kani::proof]
     fn forward_implies_steps_between() {
-        let start: u64 = kani::any();
-        let Ok(start) = VirtAddr::try_new(start) else {
-            return;
-        };
+        let start = kani::any::<VirtAddr>();
         let count: usize = kani::any();
 
         // If `forward_checked` succeeds...
@@ -1124,14 +1117,8 @@ mod proofs {
     // succeeds, `forward` succeeds as well.
     #[kani::proof]
     fn steps_between_implies_forward() {
-        let start: u64 = kani::any();
-        let Ok(start) = VirtAddr::try_new(start) else {
-            return;
-        };
-        let end: u64 = kani::any();
-        let Ok(end) = VirtAddr::try_new(end) else {
-            return;
-        };
+        let start = kani::any::<VirtAddr>();
+        let end = kani::any::<VirtAddr>();
 
         // If `steps_between` succeeds...
         let Some(count) = Step::steps_between(&start, &end).1 else {

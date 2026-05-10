@@ -460,6 +460,13 @@ impl<S: PageSize> fmt::Debug for PageRangeInclusive<S> {
     }
 }
 
+#[cfg(kani)]
+impl<S: PageSize> kani::Arbitrary for Page<S> {
+    fn any() -> Self {
+        Self::containing_address(kani::any())
+    }
+}
+
 /// The given address was not sufficiently aligned.
 #[derive(Debug)]
 pub struct AddressNotAligned;
