@@ -259,7 +259,6 @@ impl VirtAddr {
     /// An implementation of steps_between that returns u64. Note that this
     /// function always returns the exact bound, so it doesn't need to return a
     /// lower and upper bound like steps_between does.
-    #[cfg(any(feature = "instructions", feature = "step_trait"))]
     pub(crate) fn steps_between_u64(start: &Self, end: &Self) -> Option<u64> {
         let mut steps = end.0.checked_sub(start.0)?;
 
