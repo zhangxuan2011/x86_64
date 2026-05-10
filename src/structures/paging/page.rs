@@ -4,6 +4,7 @@ use crate::sealed::Sealed;
 use crate::structures::paging::page_table::PageTableLevel;
 use crate::structures::paging::PageTableIndex;
 use crate::VirtAddr;
+use core::convert::TryFrom;
 use core::fmt;
 #[cfg(feature = "step_trait")]
 use core::iter::Step;
@@ -161,8 +162,6 @@ impl<S: PageSize> Page<S> {
     // FIXME: Move this into the `Step` impl, once `Step` is stabilized.
     #[cfg(any(feature = "instructions", feature = "step_trait"))]
     pub(crate) fn steps_between_impl(start: &Self, end: &Self) -> (usize, Option<usize>) {
-        use core::convert::TryFrom;
-
         if let Some(steps) =
             VirtAddr::steps_between_u64(&start.start_address(), &end.start_address())
         {
@@ -177,8 +176,6 @@ impl<S: PageSize> Page<S> {
     // FIXME: Move this into the `Step` impl, once `Step` is stabilized.
     #[cfg(any(feature = "instructions", feature = "step_trait"))]
     pub(crate) fn forward_checked_impl(start: Self, count: usize) -> Option<Self> {
-        use core::convert::TryFrom;
-
         let count = u64::try_from(count).ok()?.checked_mul(S::SIZE)?;
         let start_address = VirtAddr::forward_checked_u64(start.start_address, count)?;
         Some(Self {
@@ -371,6 +368,13 @@ impl<S: PageSize> Iterator for PageRange<S> {
             None
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        usize::try_from(len)
+            .map(|len| (len, Some(len)))
+            .unwrap_or((usize::MAX, None))
+    }
 }
 
 impl<S: PageSize> DoubleEndedIterator for PageRange<S> {
@@ -460,6 +464,13 @@ impl<S: PageSize> Iterator for PageRangeInclusive<S> {
         } else {
             None
         }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        usize::try_from(len)
+            .map(|len| (len, Some(len)))
+            .unwrap_or((usize::MAX, None))
     }
 }
 

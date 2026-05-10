@@ -3,6 +3,7 @@
 use super::page::AddressNotAligned;
 use crate::structures::paging::page::{PageSize, Size4KiB};
 use crate::PhysAddr;
+use core::convert::TryFrom;
 use core::fmt;
 use core::marker::PhantomData;
 use core::ops::{Add, AddAssign, Sub, SubAssign};
@@ -179,6 +180,13 @@ impl<S: PageSize> Iterator for PhysFrameRange<S> {
             None
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        usize::try_from(len)
+            .map(|len| (len, Some(len)))
+            .unwrap_or((usize::MAX, None))
+    }
 }
 
 impl<S: PageSize> DoubleEndedIterator for PhysFrameRange<S> {
@@ -248,6 +256,13 @@ impl<S: PageSize> Iterator for PhysFrameRangeInclusive<S> {
         } else {
             None
         }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        usize::try_from(len)
+            .map(|len| (len, Some(len)))
+            .unwrap_or((usize::MAX, None))
     }
 }
 
