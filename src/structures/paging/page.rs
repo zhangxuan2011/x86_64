@@ -373,6 +373,18 @@ impl<S: PageSize> Iterator for PageRange<S> {
     }
 }
 
+impl<S: PageSize> DoubleEndedIterator for PageRange<S> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.start < self.end {
+            self.end -= 1;
+            Some(self.end)
+        } else {
+            None
+        }
+    }
+}
+
 impl PageRange<Size2MiB> {
     /// Converts the range of 2MiB pages to a range of 4KiB pages.
     #[inline]
@@ -443,6 +455,27 @@ impl<S: PageSize> Iterator for PageRangeInclusive<S> {
                 self.start += 1;
             } else {
                 self.end -= 1;
+            }
+            Some(page)
+        } else {
+            None
+        }
+    }
+}
+
+impl<S: PageSize> DoubleEndedIterator for PageRangeInclusive<S> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.start <= self.end {
+            let page = self.end;
+
+            // If the start of the inclusive range is 0, decrementing end until
+            // it is smaller than the start will cause an integer underflow.
+            // So instead, in that case we increment start rather than decrementing end.
+            if self.end.start_address().as_u64() != 0 {
+                self.end -= 1;
+            } else {
+                self.start += 1;
             }
             Some(page)
         } else {
@@ -551,6 +584,18 @@ mod tests {
 
     // TODO: This probably shouldn't panic, but we can't fix this without a breaking change.
     #[test]
+    #[should_panic = "attempt to subtract resulted in non-canonical virtual address: VirtAddrNotValid(0xffff7ffffffff000)"]
+    fn test_page_range_next_back_jumping_gap_panics() {
+        let start = 0x7fff_ffff_f000;
+        let end = 0xffff_8000_0000_0000;
+        let start = VirtAddr::new(start);
+        let end = VirtAddr::new(end);
+        let start = Page::<Size4KiB>::from_start_address(start).unwrap();
+        let end = Page::from_start_address(end).unwrap();
+        Page::range(start, end).next_back();
+    }
+
+    #[test]
     #[should_panic = "attempt to add resulted in non-canonical virtual address: VirtAddrNotValid(0x800000000000)"]
     fn test_page_range_inclusive_next_not_jumping_gap_panics() {
         let start = 0x7fff_ffff_f000;
@@ -563,6 +608,19 @@ mod tests {
     }
 
     #[test]
+    #[should_panic = "attempt to subtract resulted in non-canonical virtual address: VirtAddrNotValid(0xffff7ffffffff000)"]
+    fn test_page_range_inclusive_next_back_not_jumping_gap_panics() {
+        let start = 0x7fff_ffff_f000;
+        let end = 0xffff_8000_0000_0000;
+        let start = VirtAddr::new(start);
+        let end = VirtAddr::new(end);
+        let start = Page::<Size4KiB>::from_start_address(start).unwrap();
+        let end = Page::from_start_address(end).unwrap();
+        Page::range_inclusive(start, end).next_back();
+    }
+
+    // TODO: This probably shouldn't panic, but we can't fix this without a breaking change.
+    #[test]
     #[should_panic = "attempt to add resulted in non-canonical virtual address: VirtAddrNotValid(0x800000000000)"]
     fn test_page_range_inclusive_next_jumping_gap_panics() {
         let start = 0x7fff_ffff_f000;
@@ -573,6 +631,19 @@ mod tests {
         let end = Page::from_start_address(end).unwrap();
         Page::range_inclusive(start, end).next();
         Page::range_inclusive(start, end).next();
+    }
+
+    #[test]
+    #[should_panic = "attempt to subtract resulted in non-canonical virtual address: VirtAddrNotValid(0xffff7ffffffff000)"]
+    fn test_page_range_inclusive_next_back_jumping_gap_panics() {
+        let start = 0xffff_8000_0000_0000;
+        let end = 0xffff_8000_0000_0000;
+        let start = VirtAddr::new(start);
+        let end = VirtAddr::new(end);
+        let start = Page::<Size4KiB>::from_start_address(start).unwrap();
+        let end = Page::from_start_address(end).unwrap();
+        Page::range_inclusive(start, end).next_back();
+        Page::range_inclusive(start, end).next_back();
     }
 
     #[test]
