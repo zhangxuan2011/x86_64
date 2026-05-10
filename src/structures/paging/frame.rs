@@ -181,6 +181,18 @@ impl<S: PageSize> Iterator for PhysFrameRange<S> {
     }
 }
 
+impl<S: PageSize> DoubleEndedIterator for PhysFrameRange<S> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.start < self.end {
+            self.end -= 1;
+            Some(self.end)
+        } else {
+            None
+        }
+    }
+}
+
 impl<S: PageSize> fmt::Debug for PhysFrameRange<S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("PhysFrameRange")
@@ -233,6 +245,18 @@ impl<S: PageSize> Iterator for PhysFrameRangeInclusive<S> {
             let frame = self.start;
             self.start += 1;
             Some(frame)
+        } else {
+            None
+        }
+    }
+}
+
+impl<S: PageSize> DoubleEndedIterator for PhysFrameRangeInclusive<S> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.start <= self.end {
+            self.end -= 1;
+            Some(self.end)
         } else {
             None
         }
