@@ -181,6 +181,29 @@ impl<S: PageSize> Iterator for PhysFrameRange<S> {
         }
     }
 
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        if self.is_empty() {
+            return None;
+        }
+
+        // Convert to `u64`. If the value doesn't fit just use `u64::MAX`.
+        // `self.len()` is guaranteed to be smaller than the real value and
+        // `u64::MAX` anyway, so it doesn't make a difference.
+        let n = u64::try_from(n).unwrap_or(u64::MAX);
+
+        // Handling `n >= self.len()` is a bit more complicated because we
+        // can't just add `n` to `self.start` (it might overflow). Handle this
+        // by doing two steps, `self.len()-1` and `1`. This should return
+        // `None`.
+        if n >= self.len() {
+            self.nth(self.len() as usize - 1)?;
+            return self.next();
+        }
+
+        self.start += n;
+        self.next()
+    }
+
     fn size_hint(&self) -> (usize, Option<usize>) {
         let len = self.len();
         usize::try_from(len)
@@ -256,6 +279,29 @@ impl<S: PageSize> Iterator for PhysFrameRangeInclusive<S> {
         } else {
             None
         }
+    }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        if self.is_empty() {
+            return None;
+        }
+
+        // Convert to `u64`. If the value doesn't fit just use `u64::MAX`.
+        // `self.len()` is guaranteed to be smaller than the real value and
+        // `u64::MAX` anyway, so it doesn't make a difference.
+        let n = u64::try_from(n).unwrap_or(u64::MAX);
+
+        // Handling `n >= self.len()` is a bit more complicated because we
+        // can't just add `n` to `self.start` (it might overflow). Handle this
+        // by doing two steps, `self.len()-1` and `1`. This should return
+        // `None`.
+        if n >= self.len() {
+            self.nth(self.len() as usize - 1)?;
+            return self.next();
+        }
+
+        self.start += n;
+        self.next()
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
