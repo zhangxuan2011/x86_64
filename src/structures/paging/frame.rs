@@ -222,6 +222,29 @@ impl<S: PageSize> DoubleEndedIterator for PhysFrameRange<S> {
             None
         }
     }
+
+    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+        if self.is_empty() {
+            return None;
+        }
+
+        // Convert to `u64`. If the value doesn't fit just use `u64::MAX`.
+        // `self.len()` is guaranteed to be smaller than the real value and
+        // `u64::MAX` anyway, so it doesn't make a difference.
+        let n = u64::try_from(n).unwrap_or(u64::MAX);
+
+        // Handling `n >= self.len()` is a bit more complicated because we
+        // can't just subtract `n` to `self.end` (it might overflow). Handle
+        // this by doing two steps, `self.len()-1` and `1`. This should return
+        // `None`.
+        if n >= self.len() {
+            self.nth_back(self.len() as usize - 1)?;
+            return self.next_back();
+        }
+
+        self.end -= n;
+        self.next_back()
+    }
 }
 
 impl<S: PageSize> fmt::Debug for PhysFrameRange<S> {
@@ -321,6 +344,29 @@ impl<S: PageSize> DoubleEndedIterator for PhysFrameRangeInclusive<S> {
         } else {
             None
         }
+    }
+
+    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+        if self.is_empty() {
+            return None;
+        }
+
+        // Convert to `u64`. If the value doesn't fit just use `u64::MAX`.
+        // `self.len()` is guaranteed to be smaller than the real value and
+        // `u64::MAX` anyway, so it doesn't make a difference.
+        let n = u64::try_from(n).unwrap_or(u64::MAX);
+
+        // Handling `n >= self.len()` is a bit more complicated because we
+        // can't just subtract `n` to `self.end` (it might overflow). Handle
+        // this by doing two steps, `self.len()-1` and `1`. This should return
+        // `None`.
+        if n >= self.len() {
+            self.nth_back(self.len() as usize - 1)?;
+            return self.next_back();
+        }
+
+        self.end -= n;
+        self.next_back()
     }
 }
 
