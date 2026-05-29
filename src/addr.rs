@@ -717,6 +717,13 @@ impl Sub<PhysAddr> for PhysAddr {
     }
 }
 
+#[cfg(kani)]
+impl kani::Arbitrary for PhysAddr {
+    fn any() -> Self {
+        Self::new_truncate(kani::any())
+    }
+}
+
 /// Align address downwards.
 ///
 /// Returns the greatest `x` with alignment `align` so that `x <= addr`.

@@ -397,6 +397,13 @@ impl<S: PageSize> fmt::Debug for PhysFrameRangeInclusive<S> {
     }
 }
 
+#[cfg(kani)]
+impl<S: PageSize> kani::Arbitrary for PhysFrame<S> {
+    fn any() -> Self {
+        Self::containing_address(kani::any())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -411,5 +418,198 @@ mod tests {
 
         let range_inclusive = PhysFrameRangeInclusive { start, end };
         assert_eq!(range_inclusive.len(), 51);
+    }
+}
+
+#[cfg(kani)]
+mod proofs {
+    use super::*;
+
+    #[kani::proof]
+    fn phys_frame_range_next() {
+        let start = kani::any::<PhysFrame>();
+        let end = kani::any::<PhysFrame>();
+        let mut range = PhysFrame::range(start, end);
+
+        // Test that calling `next` twice works.
+        let difference = end
+            .start_address()
+            .as_u64()
+            .checked_sub(start.start_address().as_u64());
+        let expected_result = difference.is_some_and(|d| d >= 0x1000).then(|| start);
+        assert_eq!(range.next(), expected_result);
+        let expected_result = difference.is_some_and(|d| d >= 0x2000).then(|| start + 1);
+        assert_eq!(range.next(), expected_result);
+    }
+
+    #[kani::proof]
+    fn phys_frame_range_inclusive_next() {
+        let start = kani::any::<PhysFrame>();
+        let end = kani::any::<PhysFrame>();
+        let mut range = PhysFrame::range_inclusive(start, end);
+
+        // Test that calling `next` twice works.
+        let difference = end
+            .start_address()
+            .as_u64()
+            .checked_sub(start.start_address().as_u64());
+        let expected_result = difference.is_some().then(|| start);
+        assert_eq!(range.next(), expected_result);
+        let expected_result = difference.is_some_and(|d| d >= 0x1000).then(|| start + 1);
+        assert_eq!(range.next(), expected_result);
+    }
+
+    #[kani::proof]
+    fn phys_frame_range_next_back() {
+        let start = kani::any::<PhysFrame>();
+        let end = kani::any::<PhysFrame>();
+        let mut range = PhysFrame::range(start, end);
+
+        // Test that calling `next_back` twice works.
+        let difference = end
+            .start_address()
+            .as_u64()
+            .checked_sub(start.start_address().as_u64());
+        let expected_result = difference.is_some_and(|d| d >= 0x1000).then(|| end - 1);
+        assert_eq!(range.next_back(), expected_result);
+        let expected_result = difference.is_some_and(|d| d >= 0x2000).then(|| end - 2);
+        assert_eq!(range.next_back(), expected_result);
+    }
+
+    #[kani::proof]
+    fn phys_frame_range_inclusive_next_back() {
+        let start = kani::any::<PhysFrame>();
+        let end = kani::any::<PhysFrame>();
+        let mut range = PhysFrame::range_inclusive(start, end);
+
+        // Test that calling `next_back` twice works.
+        let difference = end
+            .start_address()
+            .as_u64()
+            .checked_sub(start.start_address().as_u64());
+        let expected_result = difference.is_some().then(|| end);
+        assert_eq!(range.next_back(), expected_result);
+        let expected_result = difference.is_some_and(|d| d >= 0x1000).then(|| end - 1);
+        assert_eq!(range.next_back(), expected_result);
+    }
+
+    #[kani::proof]
+    #[kani::unwind(1)]
+    fn phys_frame_range_nth_0() {
+        let start = kani::any::<PhysFrame>();
+        let end = kani::any::<PhysFrame>();
+        let mut range = PhysFrame::range(start, end);
+        let mut range2 = PhysFrame::range(start, end);
+
+        // Test that nth(0) behaves like next().
+        assert_eq!(range.next(), range2.nth(0));
+        assert_eq!(range.next(), range2.nth(0));
+    }
+
+    #[kani::proof]
+    #[kani::unwind(1)]
+    fn phys_frame_range_nth() {
+        let start = kani::any::<PhysFrame>();
+        let end = kani::any::<PhysFrame>();
+        let m = kani::any::<usize>();
+        let n = kani::any::<usize>();
+        let sum = m.saturating_add(n).saturating_add(1);
+        let mut range = PhysFrame::range(start, end);
+        let mut range2 = PhysFrame::range(start, end);
+
+        // Test that doing steps of size m and n is equivalent to a single step
+        // of size m+n+1.
+        range.nth(m);
+        assert_eq!(range.nth(n), range2.nth(sum));
+    }
+
+    #[kani::proof]
+    #[kani::unwind(1)]
+    fn phys_frame_range_inclusive_nth_0() {
+        let start = kani::any::<PhysFrame>();
+        let end = kani::any::<PhysFrame>();
+        let mut range = PhysFrame::range_inclusive(start, end);
+        let mut range2 = PhysFrame::range_inclusive(start, end);
+
+        // Test that nth(0) behaves like next().
+        assert_eq!(range.next(), range2.nth(0));
+        assert_eq!(range.next(), range2.nth(0));
+    }
+
+    #[kani::proof]
+    #[kani::unwind(1)]
+    fn phys_frame_range_inclusive_nth() {
+        let start = kani::any::<PhysFrame>();
+        let end = kani::any::<PhysFrame>();
+        let m = kani::any::<usize>();
+        let n = kani::any::<usize>();
+        let sum = m.saturating_add(n).saturating_add(1);
+        let mut range = PhysFrame::range_inclusive(start, end);
+        let mut range2 = PhysFrame::range_inclusive(start, end);
+
+        // Test that doing steps of size m and n is equivalent to a single step
+        // of size m+n+1.
+        range.nth(m);
+        assert_eq!(range.nth(n), range2.nth(sum));
+    }
+
+    #[kani::proof]
+    #[kani::unwind(1)]
+    fn phys_frame_range_nth_back_0() {
+        let start = kani::any::<PhysFrame>();
+        let end = kani::any::<PhysFrame>();
+        let mut range = PhysFrame::range(start, end);
+        let mut range2 = PhysFrame::range(start, end);
+
+        // Test that nth_back(0) behaves like next_back().
+        assert_eq!(range.next_back(), range2.nth_back(0));
+        assert_eq!(range.next_back(), range2.nth_back(0));
+    }
+
+    #[kani::proof]
+    #[kani::unwind(1)]
+    fn phys_frame_range_nth_back() {
+        let start = kani::any::<PhysFrame>();
+        let end = kani::any::<PhysFrame>();
+        let m = kani::any::<usize>();
+        let n = kani::any::<usize>();
+        let sum = m.saturating_add(n).saturating_add(1);
+        let mut range = PhysFrame::range(start, end);
+        let mut range2 = PhysFrame::range(start, end);
+
+        // Test that doing steps of size m and n is equivalent to a single step
+        // of size m+n+1.
+        range.nth_back(m);
+        assert_eq!(range.nth_back(n), range2.nth_back(sum));
+    }
+
+    #[kani::proof]
+    #[kani::unwind(1)]
+    fn phys_frame_range_inclusive_nth_back_0() {
+        let start = kani::any::<PhysFrame>();
+        let end = kani::any::<PhysFrame>();
+        let mut range = PhysFrame::range_inclusive(start, end);
+        let mut range2 = PhysFrame::range_inclusive(start, end);
+
+        // Test that nth_back(0) behaves like next_back().
+        assert_eq!(range.next_back(), range2.nth_back(0));
+        assert_eq!(range.next_back(), range2.nth_back(0));
+    }
+
+    #[kani::proof]
+    #[kani::unwind(1)]
+    fn phys_frame_range_inclusive_nth_back() {
+        let start = kani::any::<PhysFrame>();
+        let end = kani::any::<PhysFrame>();
+        let m = kani::any::<usize>();
+        let n = kani::any::<usize>();
+        let sum = m.saturating_add(n).saturating_add(1);
+        let mut range = PhysFrame::range_inclusive(start, end);
+        let mut range2 = PhysFrame::range_inclusive(start, end);
+
+        // Test that doing steps of size m and n is equivalent to a single step
+        // of size m+n+1.
+        range.nth_back(m);
+        assert_eq!(range.nth_back(n), range2.nth_back(sum));
     }
 }
