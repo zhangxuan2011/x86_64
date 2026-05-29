@@ -297,7 +297,16 @@ impl<S: PageSize> Iterator for PhysFrameRangeInclusive<S> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.start <= self.end {
             let frame = self.start;
-            self.start += 1;
+
+            // If the end of the inclusive range is the maximum page possible for size S,
+            // incrementing start until it is greater than the end will cause an integer overflow.
+            // So instead, in that case we decrement end rather than incrementing start.
+            let max_frame_addr = PhysAddr::new_truncate(u64::MAX) - (S::SIZE - 1);
+            if self.start.start_address() < max_frame_addr {
+                self.start += 1;
+            } else {
+                self.end -= 1;
+            }
             Some(frame)
         } else {
             None
@@ -339,8 +348,17 @@ impl<S: PageSize> DoubleEndedIterator for PhysFrameRangeInclusive<S> {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.start <= self.end {
-            self.end -= 1;
-            Some(self.end)
+            let frame = self.end;
+
+            // If the start of the inclusive range is 0, decrementing end until
+            // it is smaller than the start will cause an integer underflow.
+            // So instead, in that case we increment start rather than decrementing end.
+            if self.end.start_address().as_u64() != 0 {
+                self.end -= 1;
+            } else {
+                self.start += 1;
+            }
+            Some(frame)
         } else {
             None
         }
