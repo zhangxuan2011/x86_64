@@ -46,6 +46,24 @@ impl<S: PageSize> PhysFrame<S> {
         }
     }
 
+    /// Returns the frame by a physical frame number.
+    #[inline]
+    pub fn from_pfn(pfn: u64) -> Self {
+        // Let's see the size of this frame...
+        // XXX: We have to hard-code it, as it only supports number, not expr.
+        let addr = match S::SIZE {
+            4096 => PhysAddr::new(pfn >> 12),           // Size4KiB
+            2097152 => PhysAddr::new(pfn >> 21),        // Size2MiB
+            1073741824 => PhysAddr::new(pfn >> 30),     // Size1GiB
+            _ => panic!("Invalid frame size: {}", S::SIZE),   // Wth???
+        };
+
+        PhysFrame {
+            start_address: addr,    // Already aligned upthere
+            size: PhantomData,
+        }
+    }
+
     /// Returns the frame that contains the given physical address.
     #[inline]
     #[rustversion::attr(since(1.61), const)]
