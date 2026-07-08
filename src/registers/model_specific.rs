@@ -469,7 +469,7 @@ mod x86_64 {
             ss_syscall: SegmentSelector,
         ) -> Result<(), InvalidStarSegmentSelectors> {
             // Convert to i32 to prevent underflows.
-            let cs_sysret_cmp = i32::from(cs_sysret.0);
+            let cs_sysret_cmp = i32::from(cs_sysret.0) - 16;
             let ss_sysret_cmp = i32::from(ss_sysret.0) - 8;
             let cs_syscall_cmp = i32::from(cs_syscall.0);
             let ss_syscall_cmp = i32::from(ss_syscall.0) - 8;
