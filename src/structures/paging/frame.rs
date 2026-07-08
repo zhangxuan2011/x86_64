@@ -48,6 +48,9 @@ impl<S: PageSize> PhysFrame<S> {
     }
 
     /// Returns the frame by a physical frame number.
+    /// 
+    /// This function will automatically time the size of the frame to get its 
+    /// physical address
     ///
     /// ## Panics
     /// Will panic if the after-converted address's 52..64 bits is not empty.
