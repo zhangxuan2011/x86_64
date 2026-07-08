@@ -451,11 +451,16 @@ mod x86_64 {
         }
 
         /// Write the Ring 0 and Ring 3 segment bases.
+        ///
         /// The remaining fields are ignored because they are
         /// not valid for long mode.
+        ///
         /// This function will fail if the segment selectors are
         /// not in the correct offset of each other or if the
         /// segment selectors do not have correct privileges.
+        ///
+        /// Also, if you want to return from syscall, you
+        /// shall use "sysretq" (64) instead of "sysret" (32).
         #[inline]
         pub fn write(
             cs_sysret: SegmentSelector,

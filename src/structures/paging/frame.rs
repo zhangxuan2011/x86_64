@@ -1,6 +1,7 @@
 //! Abstractions for default-sized and huge physical memory frames.
 
 use super::page::AddressNotAligned;
+use crate::addr::PhysAddrNotValid;
 use crate::structures::paging::page::{PageSize, Size4KiB};
 use crate::PhysAddr;
 use core::convert::TryFrom;
@@ -47,19 +48,39 @@ impl<S: PageSize> PhysFrame<S> {
     }
 
     /// Returns the frame by a physical frame number.
+    ///
+    /// ## Panics
+    /// Will panic if the after-converted address's 52..64 bits is not empty.
     #[inline]
     pub fn from_pfn(pfn: u64) -> Self {
-        // Let's see the size of this frame...
-        // XXX: We have to hard-code it, as it only supports number, not expr.
-        let addr = match S::SIZE {
-            4096 => PhysAddr::new(pfn >> 12),           // Size4KiB
-            2097152 => PhysAddr::new(pfn >> 21),        // Size2MiB
-            1073741824 => PhysAddr::new(pfn >> 30),     // Size1GiB
-            _ => panic!("Invalid frame size: {}", S::SIZE),   // Wth???
-        };
+        match Self::try_from_pfn(pfn) {
+            Ok(frame) => frame,
+            Err(_) => panic!("The PFN \"{}\"is not valid", pfn),
+        }
+    }
 
+    /// Try to convert a physical frame number to a frame.
+    ///
+    /// ## Error
+    /// Will return error if the after-converted address's 52..64 bits is not empty.
+    #[inline]
+    pub fn try_from_pfn(pfn: u64) -> Result<Self, PhysAddrNotValid> {
+        let addr = PhysAddr::try_new(pfn * S::SIZE)?;
+        Ok(PhysFrame {
+            start_address: addr,
+            size: PhantomData,
+        })
+    }
+
+    /// Returns the frame by a physical frame number without checking.
+    ///
+    /// # Safety
+    /// The PFN must be valid (The after-converted address's 52..64 bits must be empty).
+    #[inline]
+    #[rustversion::attr(since(1.61), const)]
+    pub unsafe fn from_pfn_unchecked(pfn: u64) -> Self {
         PhysFrame {
-            start_address: addr,    // Already aligned upthere
+            start_address: unsafe { PhysAddr::new_unsafe(pfn * S::SIZE) },
             size: PhantomData,
         }
     }
@@ -86,6 +107,13 @@ impl<S: PageSize> PhysFrame<S> {
     #[rustversion::attr(since(1.61), const)]
     pub fn size(self) -> u64 {
         S::SIZE
+    }
+
+    /// Returns the PFN of the current frame.
+    #[inline]
+    #[rustversion::attr(since(1.61), const)]
+    pub fn pfn(self) -> u64 {
+        self.start_address.as_u64() / S::SIZE
     }
 
     /// Returns a range of frames, exclusive `end`.
