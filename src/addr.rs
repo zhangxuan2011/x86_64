@@ -11,6 +11,8 @@ use core::sync::atomic::Ordering;
 #[cfg(feature = "memory_encryption")]
 use crate::structures::mem_encrypt::ENC_BIT_MASK;
 use crate::structures::paging::page_table::PageTableLevel;
+#[cfg(doc)]
+use crate::structures::paging::PhysFrame;
 use crate::structures::paging::{PageOffset, PageTableIndex};
 
 use bit_field::BitField;
@@ -522,7 +524,8 @@ impl kani::Arbitrary for VirtAddr {
 ///
 /// This means that bits 52 to 64 were not all null.
 ///
-/// Contains the invalid address.
+/// Contains the invalid address in common situation, or the PFN number
+/// if use [`PhysFrame::try_from_pfn`] / [`PhysFrame::from_pfn`].
 pub struct PhysAddrNotValid(pub u64);
 
 impl core::fmt::Debug for PhysAddrNotValid {

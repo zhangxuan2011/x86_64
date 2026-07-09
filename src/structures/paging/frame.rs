@@ -48,8 +48,8 @@ impl<S: PageSize> PhysFrame<S> {
     }
 
     /// Returns the frame by a physical frame number.
-    /// 
-    /// This function will automatically time the size of the frame to get its 
+    ///
+    /// This function will automatically time the size of the frame to get its
     /// physical address
     ///
     /// ## Panics
@@ -68,7 +68,8 @@ impl<S: PageSize> PhysFrame<S> {
     /// Will return error if the after-converted address's 52..64 bits is not empty.
     #[inline]
     pub fn try_from_pfn(pfn: u64) -> Result<Self, PhysAddrNotValid> {
-        let addr = PhysAddr::try_new(pfn * S::SIZE)?;
+        let addr_raw = pfn.checked_mul(S::SIZE).ok_or(PhysAddrNotValid(pfn))?; // XXX: The phys addr that the PFN ref is invalid.
+        let addr = PhysAddr::try_new(addr_raw)?;
         Ok(PhysFrame {
             start_address: addr,
             size: PhantomData,
