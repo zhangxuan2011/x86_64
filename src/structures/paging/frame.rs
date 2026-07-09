@@ -1,13 +1,32 @@
 //! Abstractions for default-sized and huge physical memory frames.
 
 use super::page::AddressNotAligned;
-use crate::addr::PhysAddrNotValid;
 use crate::structures::paging::page::{PageSize, Size4KiB};
 use crate::PhysAddr;
 use core::convert::TryFrom;
 use core::fmt;
 use core::marker::PhantomData;
 use core::ops::{Add, AddAssign, Sub, SubAssign};
+
+/// A passed `u64` was not a valid physical address.
+///
+/// This means address which PFN refer to is:
+///  - Overflowed the `u64`;
+///  - The address's 52..64 is not empty.
+///
+/// Contains the invalid PFN number if use [`PhysFrame::try_from_pfn`] / [`PhysFrame::from_pfn`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(transparent)]
+pub struct InvalidPfn(pub u64);
+
+// Implementation of display
+impl fmt::Display for InvalidPfn {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_tuple("PhysAddrNotValid")
+            .field(&format_args!("{:#x}", self.0))
+            .finish()
+    }
+}
 
 /// A physical memory frame.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -67,9 +86,9 @@ impl<S: PageSize> PhysFrame<S> {
     /// ## Error
     /// Will return error if the after-converted address's 52..64 bits is not empty.
     #[inline]
-    pub fn try_from_pfn(pfn: u64) -> Result<Self, PhysAddrNotValid> {
-        let addr_raw = pfn.checked_mul(S::SIZE).ok_or(PhysAddrNotValid(pfn))?; // XXX: The phys addr that the PFN ref is invalid.
-        let addr = PhysAddr::try_new(addr_raw)?;
+    pub fn try_from_pfn(pfn: u64) -> Result<Self, InvalidPfn> {
+        let addr_raw = pfn.checked_mul(S::SIZE).ok_or(InvalidPfn(pfn))?; // XXX: The phys addr that the PFN ref is invalid.
+        let addr = PhysAddr::try_new(addr_raw).map_err(|_| InvalidPfn(pfn))?;
         Ok(PhysFrame {
             start_address: addr,
             size: PhantomData,
