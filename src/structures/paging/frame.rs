@@ -10,11 +10,9 @@ use core::ops::{Add, AddAssign, Sub, SubAssign};
 
 /// A passed `u64` was not a valid physical address.
 ///
-/// This means address which PFN refer to is:
-///  - Overflowed the `u64`;
-///  - The address's 52..64 is not empty.
+/// This means that bits 40 to 64 were not all null.
 ///
-/// Contains the invalid PFN number if use [`PhysFrame::try_from_pfn`] / [`PhysFrame::from_pfn`].
+/// Contains the invalid PFN.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct InvalidPfn(pub u64);
@@ -68,11 +66,15 @@ impl<S: PageSize> PhysFrame<S> {
 
     /// Returns the frame by a physical frame number.
     ///
-    /// This function will automatically time the size of the frame to get its
-    /// physical address
+    /// ```
+    /// use x86_64::{PhysAddr, structures::paging::{PhysFrame, Size4KiB}};
     ///
-    /// ## Panics
-    /// Will panic if the after-converted address's 52..64 bits is not empty.
+    /// assert_eq!(PhysFrame::<Size4KiB>::from_pfn(0x123), PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(0x123000)));
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the resulting address is not valid.
     #[inline]
     pub fn from_pfn(pfn: u64) -> Self {
         match Self::try_from_pfn(pfn) {
@@ -81,10 +83,17 @@ impl<S: PageSize> PhysFrame<S> {
         }
     }
 
-    /// Try to convert a physical frame number to a frame.
+    /// Returns the frame by a physical frame number.
     ///
-    /// ## Error
-    /// Will return error if the after-converted address's 52..64 bits is not empty.
+    /// ```
+    /// use x86_64::{PhysAddr, structures::paging::{PhysFrame, Size4KiB}};
+    ///
+    /// assert_eq!(PhysFrame::<Size4KiB>::try_from_pfn(0x123), Ok(PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(0x123000))));
+    /// ```
+    ///
+    /// # Error
+    ///
+    /// This function will return an error if the resulting address is not valid.
     #[inline]
     pub fn try_from_pfn(pfn: u64) -> Result<Self, InvalidPfn> {
         let addr_raw = pfn.checked_mul(S::SIZE).ok_or(InvalidPfn(pfn))?; // XXX: The phys addr that the PFN ref is invalid.
@@ -95,10 +104,11 @@ impl<S: PageSize> PhysFrame<S> {
         })
     }
 
-    /// Returns the frame by a physical frame number without checking.
+    /// Returns the frame by a physical frame number.
     ///
     /// # Safety
-    /// The PFN must be valid (The after-converted address's 52..64 bits must be empty).
+    ///
+    /// The resulting address must be valid.
     #[inline]
     #[rustversion::attr(since(1.61), const)]
     pub unsafe fn from_pfn_unchecked(pfn: u64) -> Self {
@@ -133,6 +143,20 @@ impl<S: PageSize> PhysFrame<S> {
     }
 
     /// Returns the PFN of the current frame.
+    ///
+    /// The PFN is defined to be the address divided by the page size.
+    ///
+    /// ```
+    /// use x86_64::{PhysAddr, structures::paging::{PhysFrame, Size1GiB, Size2MiB, Size4KiB}};
+    ///
+    /// assert_eq!(PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(0x123000)).pfn(), 0x123);
+    ///
+    /// // Note that this means that the PFN for the same address will be
+    /// // different for different page sizes.
+    /// assert_eq!(PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(0xC000_0000)).pfn(), 0xC0000);
+    /// assert_eq!(PhysFrame::<Size2MiB>::containing_address(PhysAddr::new(0xC000_0000)).pfn(), 0x600);
+    /// assert_eq!(PhysFrame::<Size1GiB>::containing_address(PhysAddr::new(0xC000_0000)).pfn(), 0x3);
+    /// ```
     #[inline]
     #[rustversion::attr(since(1.61), const)]
     pub fn pfn(self) -> u64 {
