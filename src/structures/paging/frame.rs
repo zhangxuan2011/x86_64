@@ -8,24 +8,6 @@ use core::fmt;
 use core::marker::PhantomData;
 use core::ops::{Add, AddAssign, Sub, SubAssign};
 
-/// A passed `u64` was not a valid physical address.
-///
-/// This means that bits 40 to 64 were not all null.
-///
-/// Contains the invalid PFN.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(transparent)]
-pub struct InvalidPfn(pub u64);
-
-// Implementation of display
-impl fmt::Display for InvalidPfn {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_tuple("PhysAddrNotValid")
-            .field(&format_args!("{:#x}", self.0))
-            .finish()
-    }
-}
-
 /// A physical memory frame.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(C)]
@@ -95,9 +77,9 @@ impl<S: PageSize> PhysFrame<S> {
     ///
     /// This function will return an error if the resulting address is not valid.
     #[inline]
-    pub fn try_from_pfn(pfn: u64) -> Result<Self, InvalidPfn> {
-        let addr_raw = pfn.checked_mul(S::SIZE).ok_or(InvalidPfn(pfn))?; // XXX: The phys addr that the PFN ref is invalid.
-        let addr = PhysAddr::try_new(addr_raw).map_err(|_| InvalidPfn(pfn))?;
+    pub fn try_from_pfn(pfn: u64) -> Result<Self, PfnNotValid> {
+        let addr_raw = pfn.checked_mul(S::SIZE).ok_or(PfnNotValid(pfn))?; // XXX: The phys addr that the PFN ref is invalid.
+        let addr = PhysAddr::try_new(addr_raw).map_err(|_| PfnNotValid(pfn))?;
         Ok(PhysFrame {
             start_address: addr,
             size: PhantomData,
@@ -345,6 +327,24 @@ impl<S: PageSize> fmt::Debug for PhysFrameRange<S> {
         f.debug_struct("PhysFrameRange")
             .field("start", &self.start)
             .field("end", &self.end)
+            .finish()
+    }
+}
+
+/// A passed `u64` was not a valid physical address.
+///
+/// This means that bits 40 to 64 were not all null.
+///
+/// Contains the invalid PFN.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(transparent)]
+pub struct PfnNotValid(pub u64);
+
+// Implementation of display
+impl fmt::Display for PfnNotValid {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_tuple("PhysAddrNotValid")
+            .field(&format_args!("{:#x}", self.0))
             .finish()
     }
 }
