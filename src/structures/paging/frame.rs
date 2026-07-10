@@ -58,10 +58,14 @@ impl<S: PageSize> PhysFrame<S> {
     ///
     /// This function will panic if the resulting address is not valid.
     #[inline]
+    #[rustversion::attr(
+        since(1.61),
+        dep_const_fn::const_fn(cfg(not(feature = "memory_encryption")))
+    )]
     pub fn from_pfn(pfn: u64) -> Self {
         match Self::try_from_pfn(pfn) {
             Ok(frame) => frame,
-            Err(_) => panic!("The PFN \"{}\"is not valid", pfn),
+            Err(_) => panic!("PFNs must not have any bits in the range 40 to 64 set"),
         }
     }
 
@@ -77,9 +81,21 @@ impl<S: PageSize> PhysFrame<S> {
     ///
     /// This function will return an error if the resulting address is not valid.
     #[inline]
+    #[rustversion::attr(
+        since(1.61),
+        dep_const_fn::const_fn(cfg(not(feature = "memory_encryption")))
+    )]
     pub fn try_from_pfn(pfn: u64) -> Result<Self, PfnNotValid> {
-        let addr_raw = pfn.checked_mul(S::SIZE).ok_or(PfnNotValid(pfn))?; // XXX: The phys addr that the PFN ref is invalid.
-        let addr = PhysAddr::try_new(addr_raw).map_err(|_| PfnNotValid(pfn))?;
+        let addr_raw = if let Some(addr_raw) = pfn.checked_mul(S::SIZE) {
+            addr_raw
+        } else {
+            return Err(PfnNotValid(pfn));
+        };
+        let addr = if let Ok(addr) = PhysAddr::try_new(addr_raw) {
+            addr
+        } else {
+            return Err(PfnNotValid(pfn));
+        };
         Ok(PhysFrame {
             start_address: addr,
             size: PhantomData,
