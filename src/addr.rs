@@ -485,6 +485,30 @@ impl Step for VirtAddr {
     fn backward_checked(start: Self, count: usize) -> Option<Self> {
         Self::backward_checked_u64(start, u64::try_from(count).ok()?)
     }
+
+    // Kani's bundled toolchain predates these methods being added to `Step`.
+    // Exclude them there so the crate still compiles under `cargo kani`.
+    // This can be removed once Kani upgrades its bundled toolchain to nightly-2026-07-10 or later.
+    #[cfg(not(kani))]
+    #[inline]
+    fn forward_overflowing(start: Self, count: usize) -> (Self, bool) {
+        match Self::forward_checked(start, count) {
+            Some(next) => (next, false),
+            None => (start, true),
+        }
+    }
+
+    // Kani's bundled toolchain predates these methods being added to `Step`.
+    // Exclude them there so the crate still compiles under `cargo kani`.
+    // This can be removed once Kani upgrades its bundled toolchain to nightly-2026-07-10 or later.
+    #[cfg(not(kani))]
+    #[inline]
+    fn backward_overflowing(start: Self, count: usize) -> (Self, bool) {
+        match Self::backward_checked(start, count) {
+            Some(next) => (next, false),
+            None => (start, true),
+        }
+    }
 }
 
 #[cfg(kani)]
@@ -934,6 +958,26 @@ mod tests {
             Step::steps_between(&VirtAddr(0), &VirtAddr(0x1_0000_0000)),
             (usize::MAX, None)
         );
+    }
+
+    #[test]
+    #[cfg(feature = "step_trait")]
+    fn virtaddr_step_overflowing() {
+        assert_eq!(
+            Step::forward_overflowing(VirtAddr(0x7fff_ffff_ffff), 1),
+            (VirtAddr(0xffff_8000_0000_0000), false)
+        );
+        assert_eq!(
+            Step::backward_overflowing(VirtAddr(0xffff_8000_0000_0000), 1),
+            (VirtAddr(0x7fff_ffff_ffff), false)
+        );
+        assert_eq!(
+            Step::forward_overflowing(VirtAddr(0), 0),
+            (VirtAddr(0), false)
+        );
+
+        assert!(Step::forward_overflowing(VirtAddr(0xffff_ffff_ffff_ffff), 1).1);
+        assert!(Step::backward_overflowing(VirtAddr(0), 1).1);
     }
 
     #[test]

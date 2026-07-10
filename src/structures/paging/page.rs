@@ -322,6 +322,28 @@ impl<S: PageSize> Step for Page<S> {
             size: PhantomData,
         })
     }
+
+    // Kani's bundled toolchain predates these methods being added to `Step`.
+    // Exclude them there so the crate still compiles under `cargo kani`.
+    // This can be removed once Kani upgrades its bundled toolchain to nightly-2026-07-10 or later.
+    #[cfg(not(kani))]
+    fn forward_overflowing(start: Self, count: usize) -> (Self, bool) {
+        match Self::forward_checked(start, count) {
+            Some(next) => (next, false),
+            None => (start, true),
+        }
+    }
+
+    // Kani's bundled toolchain predates these methods being added to `Step`.
+    // Exclude them there so the crate still compiles under `cargo kani`.
+    // This can be removed once Kani upgrades its bundled toolchain to nightly-2026-07-10 or later.
+    #[cfg(not(kani))]
+    fn backward_overflowing(start: Self, count: usize) -> (Self, bool) {
+        match Self::backward_checked(start, count) {
+            Some(next) => (next, false),
+            None => (start, true),
+        }
+    }
 }
 
 /// A range of pages with exclusive upper bound.
@@ -913,6 +935,24 @@ mod tests {
             let end = Page::from_start_address(VirtAddr::new(end)).unwrap();
             assert_eq!(Step::steps_between(&start, &end), (lower, upper));
         }
+    }
+
+    #[test]
+    #[cfg(feature = "step_trait")]
+    fn page_step_overflowing() {
+        let page = |addr| Page::<Size4KiB>::from_start_address(VirtAddr::new(addr)).unwrap();
+
+        assert_eq!(
+            Step::forward_overflowing(page(0x7fff_ffff_f000), 1),
+            (page(0xffff_8000_0000_0000), false)
+        );
+        assert_eq!(
+            Step::backward_overflowing(page(0xffff_8000_0000_0000), 1),
+            (page(0x7fff_ffff_f000), false)
+        );
+
+        assert!(Step::forward_overflowing(page(0xffff_ffff_ffff_f000), 1).1);
+        assert!(Step::backward_overflowing(page(0), 1).1);
     }
 }
 
